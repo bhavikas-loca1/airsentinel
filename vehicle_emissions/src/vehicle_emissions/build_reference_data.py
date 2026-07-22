@@ -14,8 +14,19 @@ only — no [DEMO DATA] tag, because none of these figures are estimates or plac
     citation search, same treatment as "a candle produces light" would get.
   - Average daily distance, two-wheelers, Indian cities: ~27-33 km/day (midpoint 30 km/day
     used here), from a published Indian urban-mobility study found via web search this
-    session. Reused for cars and e-rickshaws in the absence of a category-specific citation
-    — flagged as such in each row's source_citation, not hidden.
+    session.
+  - Average daily distance, cars, Delhi: ~33.5 km/day, derived from a 2003 three-cities
+    vehicle-characteristics study (urbanemissions.info) that reports a comparison city's car
+    annual mileage as "10,400 km, which is only 15% lower than that for Delhi" — implying
+    Delhi ~= 10,400 / 0.85 ~= 12,235 km/year ~= 33.5 km/day. LOWER CONFIDENCE than the BS6
+    limits above: this environment has no PDF-rendering tool, so the source PDF could not be
+    read directly to verify the figure — it's taken from a search-engine-surfaced summary of
+    the study, not confirmed against the primary document. Used anyway, clearly flagged,
+    because a distinct (even if less-certain) car figure is more honest than reusing the
+    two-wheeler number for cars (which made the whole index collapse to a near-exact vehicle
+    count — see PROJECT_STATUS.md).
+  - e-rickshaw: no category-specific citation found; reuses the two-wheeler figure as a
+    placeholder. Doesn't affect the computed load either way (e-rickshaws are 0 g/km).
 
 Run once (or whenever you want to regenerate from scratch):
     python -m vehicle_emissions.build_reference_data
@@ -63,17 +74,24 @@ def build_emission_factors() -> pd.DataFrame:
     return pd.DataFrame(rows, columns=config.EMISSION_FACTORS_COLUMNS)
 
 
+CAR_DISTANCE_TAG = "[REAL, cited but LOWER CONFIDENCE — see build_reference_data.py]"
+
+
 def build_distance_estimates() -> pd.DataFrame:
     rows = [
         ("two_wheeler", 30.0,
          f"{REAL_TAG} Real cited range 27-33 km/day, Indian-cities urban mobility study; midpoint used."),
-        ("car", 30.0,
-         f"{REAL_TAG} No car-specific citation found this session — reused the two-wheeler "
-         f"urban-mobility figure as an approximation, NOT a distinct real car number."),
+        ("car", 33.5,
+         f"{CAR_DISTANCE_TAG} Derived from a 2003 three-cities vehicle-characteristics study "
+         f"(urbanemissions.info) reporting a comparison city's car annual mileage as '10,400 "
+         f"km, only 15% lower than Delhi' -> Delhi ~= 10,400/0.85 ~= 12,235 km/yr ~= 33.5 "
+         f"km/day. Could not verify against the primary PDF (no PDF-rendering tool in this "
+         f"environment) — taken from a search-engine-surfaced summary of the study, not the "
+         f"source document directly. Distinct from and less certain than the BS6 limits above."),
         ("e_rickshaw", 30.0,
-         f"{REAL_TAG} No e-rickshaw-specific citation found; reused the same figure. Note: "
-         f"e-rickshaws have a 0 g/km emission factor, so this distance value doesn't affect "
-         f"the computed load either way."),
+         f"{REAL_TAG} No e-rickshaw-specific citation found; reused the two-wheeler figure. "
+         f"Note: e-rickshaws have a 0 g/km emission factor, so this distance value doesn't "
+         f"affect the computed load either way."),
     ]
     return pd.DataFrame(rows, columns=config.DISTANCE_ESTIMATES_COLUMNS)
 

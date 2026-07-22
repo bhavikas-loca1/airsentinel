@@ -17,14 +17,32 @@ vehicle count (by type & fuel, per RTO)
 exports pulled directly from vahan.parivahan.gov.in's Tabular Summary (State = Delhi(16),
 accessed 2026-07-21) — RTO × fuel-type and RTO × vehicle-class registration counts for all
 10 RTOs this module maps to a zone. `src/vehicle_emissions/real_registrations.py` combines
-the two into a per-(zone, vehicle_category, fuel_type) estimate — see its docstring for the
-exact method (VAHAN doesn't expose the joint breakdown directly, so the two marginals are
-combined via a documented, disclosed independence assumption, restricted to the fuel types
-this module has a real cited emission factor for: petrol, diesel, electric).
+the two into a per-(zone, vehicle_category, fuel_type) estimate via **iterative proportional
+fitting (IPF / raking)** with structural zeros — see its docstring for the exact method.
+VAHAN doesn't expose the joint breakdown directly, so the two real marginals are reconciled
+into one joint table that matches both exactly, subject to cells that are known-impossible by
+construction (diesel two-wheelers, non-electric e-rickshaws) being forced to zero rather than
+estimated small. This replaced an earlier independence-assumption version that sprayed each
+RTO's diesel count across vehicle classes in proportion to class size — since two-wheelers are
+~72% of the fleet, that misallocated most real diesel mass onto two-wheelers, where it then
+vanished (no diesel two-wheeler emission factor exists), undercounting the diesel car fleet
+(the highest per-km NOx segment this module covers) by roughly 3–4x.
+
+CNG-only and dual-fuel/hybrid registrations (~8% of the fleet, `other_fuel` bucket) are now
+included as a real, quantified IPF column rather than dropped before the estimate even runs —
+there's still no cited BS6-equivalent tailpipe factor for them, so they're excluded from the
+load calculation exactly as before, but their real magnitude and the likely *direction* of
+that omission's bias (disproportionately commercial fleet — autos, taxis, LCVs — so dropping
+it likely understates zones with more commercial traffic) are now disclosed inline in every
+zone's `coverage_note`, not just in this file.
 
 `src/vehicle_emissions/build_reference_data.py` writes the matching real (non-demo) emission
 factors — official BS6 regulatory NOx/PM limits, plus 0 g/km for electric (a physical fact,
-not an estimate) — and the same cited urban-mobility distance figure as before.
+not an estimate) — and distance estimates: the two-wheeler figure (30 km/day, well-corroborated
+citation) and now a **distinct car-specific figure** (33.5 km/day, derived from a 2003
+three-cities study, flagged as lower-confidence since the primary PDF couldn't be verified in
+this environment — see that file's docstring). e-rickshaw still reuses the two-wheeler number
+as a placeholder (doesn't affect the load either way, since e-rickshaws are 0 g/km).
 
 ```powershell
 $env:PYTHONPATH = "src"
@@ -37,11 +55,11 @@ run: RK Puram 1.00 (highest), Anand Vihar / Vivek Vihar 0.19 (lowest). `data_pro
 the output now reads `"real, cited"`, and the dashboard shows the green "live" badge, not
 amber "DEMO DATA".
 
-**Known limitation, disclosed not hidden:** the independence assumption means the estimated
-(category, fuel) split can misallocate at the margins — e.g. a small "two-wheeler/diesel"
-share gets estimated even though diesel two-wheelers are practically nonexistent in reality.
-Since no cited two-wheeler-diesel emission factor exists, that slice is excluded from the
-index automatically (visible in `coverage_note`), not silently kept.
+**Known limitation, disclosed not hidden:** zones that share an RTO as their nearest match
+(e.g. Anand Vihar and Vivek Vihar both nearest to `DL7`) get that RTO's total split **evenly**
+between them — no finer-grained official data exists to split it more precisely. This is
+disclosed per-zone in `coverage_note` (via `real_registrations.zone_rto_notes()`), not just
+in `rto_mapping.py`.
 
 ### Earlier fallback: demo data (superseded, kept for reference)
 
@@ -88,7 +106,21 @@ produces a fabricated chart or number.** This is intentional.
 ## What's still open
 
 1. ~~Vehicle registrations per RTO~~ — **done**, see "Real VAHAN data" above.
-2. **Full ARAI/CPCB emission-factor table** — tonight's real factors are the official BS6
+2. ~~Joint (category, fuel) estimation~~ — **done**: replaced the independence assumption
+   with IPF/raking + structural zeros, fixing a ~3-4x diesel-car undercount. See
+   `real_registrations.py`.
+3. ~~Car-specific average distance~~ — **partially done**: cars now use a distinct 33.5 km/day
+   figure instead of reusing the two-wheeler number, so the index no longer collapses to a
+   near-exact vehicle count. Flagged lower-confidence (see `build_reference_data.py`) since
+   the primary source PDF couldn't be verified in this environment — worth re-deriving from
+   Delhi's Comprehensive Mobility Plan or the Economic Survey's transport chapter if a
+   cleaner source turns up.
+4. **Real CNG NOx/PM factor** — CNG-only and dual-fuel vehicles (~8% of the fleet) are now
+   quantified (via the `other_fuel` IPF column) and their exclusion's likely direction is
+   disclosed in `coverage_note`, but they still have no cited BS6-equivalent emission factor,
+   so they don't contribute to the load number itself. Sourcing a real CNG BS6 limit and
+   folding it in would be the fuller fix.
+5. **Full ARAI/CPCB emission-factor table** — the real factors in use are the official BS6
    regulatory *limits* (petrol/diesel car & two-wheeler, plus electric = 0), which is a
    real, defensible, cited number — but it's the regulatory cap, not a full real-world
    ARAI/CPCB measured-emissions table broken out by every category (buses, trucks,
@@ -97,10 +129,7 @@ produces a fabricated chart or number.** This is intentional.
    - [CPCB vehicular exhaust page](https://cpcb.nic.in/vehicular-exhaust/)
    - ARAI "Emission Factors for Indian In-Use Vehicles" report
    - Lok Sabha reply, 9 Aug 2021, "Vehicle-wise Emission Factors..." (data.gov.in)
-3. **Category-specific average distances** — tonight's figure (30 km/day) is a real cited
-   two-wheeler study reused for cars/e-rickshaws too. Pull car-specific figures from Delhi's
-   Comprehensive Mobility Plan or the Economic Survey of Delhi's transport chapter.
-4. **Buses, trucks, three-wheelers, older BS-norm vehicles** — not in the current category
+6. **Buses, trucks, three-wheelers, older BS-norm vehicles** — not in the current category
    set (`two_wheeler`, `car`, `e_rickshaw`); add real emission factors + distances for them
    in `emission_factors.csv`/`distance_estimates.csv` to widen coverage.
 

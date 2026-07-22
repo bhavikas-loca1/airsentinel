@@ -52,23 +52,29 @@ def write_templates() -> None:
     distance_estimates.write_template()
 
 
-def _load_registrations(known_zones: set[str]) -> pd.DataFrame:
+def _load_registrations(known_zones: set[str]) -> tuple[pd.DataFrame, dict[str, str] | None]:
     """Priority order: real VAHAN RTO x Fuel / RTO x Vehicle Class exports (highest —
     real_registrations.py's documented estimation) > RTO-level manual CSV > hand-aggregated
-    zone-level CSV > load()'s loud error if none exist."""
+    zone-level CSV > load()'s loud error if none exist.
+
+    Only the real VAHAN path produces zone_notes (RTO-sharing even-split disclosure,
+    other_fuel exclusion bias) — the other paths have no RTO-level structure to disclose.
+    """
     if config.REAL_RTO_FUEL_CSV.exists() and config.REAL_RTO_CATEGORY_CSV.exists():
-        return real_registrations.load_by_rto_real(known_zones=known_zones)
+        regs = real_registrations.load_by_rto_real(known_zones=known_zones)
+        zone_notes = real_registrations.zone_rto_notes(known_zones=known_zones)
+        return regs, zone_notes
     if config.REGISTRATIONS_BY_RTO_CSV.exists():
-        return registrations.load_by_rto()
-    return registrations.load()
+        return registrations.load_by_rto(), None
+    return registrations.load(), None
 
 
 def run() -> pd.DataFrame:
     known_zones = _known_zones()
-    regs = _load_registrations(known_zones)
+    regs, zone_notes = _load_registrations(known_zones)
     efs = emission_factors.load()
     dists = distance_estimates.load()
-    result = index.compute(regs, efs, dists, known_zones=known_zones)
+    result = index.compute(regs, efs, dists, known_zones=known_zones, zone_notes=zone_notes)
     out_path = config.OUTPUTS_DIR / "vehicle_emission_index.csv"
     result.to_csv(out_path, index=False)
     return result, out_path

@@ -35,13 +35,21 @@ def compute(
     emission_factors: pd.DataFrame,
     distances: pd.DataFrame,
     known_zones: set[str] | None = None,
+    zone_notes: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """Join the three real input tables and compute a relative Vehicle Emission Load Index
     per zone.
 
     Rows in `registrations` whose (vehicle_category, fuel_type) has no matching emission
     factor or distance estimate are excluded from that zone's load and reported in
-    `coverage_note` — never silently assumed to be zero or imputed.
+    `coverage_note` — never silently assumed to be zero or imputed. The exclusion is
+    reported with its real magnitude (vehicle count and % of the zone's total real fleet),
+    not just the category name, so the scale of what's excluded is visible, not just the
+    fact of it.
+
+    zone_notes: optional {zone: extra text} appended verbatim to that zone's coverage_note —
+    used by real_registrations.py to disclose the RTO->zone even-split allocation inline in
+    the final output, not just in an intermediate file few people open.
     """
     if known_zones is not None:
         unknown = set(registrations["zone"].unique()) - known_zones
@@ -79,6 +87,8 @@ def compute(
         n_included = int(grp["matched"].sum())
         n_total = int(len(grp))
         raw_load = float(grp["load_g_per_day"].sum())
+        zone_total_vehicles = float(grp["vehicle_count"].sum())
+        excluded_vehicles = float(grp.loc[~grp["matched"], "vehicle_count"].sum())
         unmatched = grp.loc[~grp["matched"], config.JOIN_KEYS].drop_duplicates()
         coverage_note = (
             f"{n_included}/{n_total} vehicle_category+fuel_type combinations matched an "
@@ -86,7 +96,14 @@ def compute(
         )
         if not unmatched.empty:
             missing = ", ".join(f"{r.vehicle_category}/{r.fuel_type}" for r in unmatched.itertuples())
-            coverage_note += f" Excluded (no matching factor/distance data): {missing}."
+            excl_pct = (excluded_vehicles / zone_total_vehicles * 100) if zone_total_vehicles else 0.0
+            coverage_note += (
+                f" Excluded (no matching factor/distance data): {missing} "
+                f"— {excluded_vehicles:,.0f} vehicles ({excl_pct:.0f}% of this zone's estimated "
+                f"fleet) not counted toward the index."
+            )
+        if zone_notes and zone in zone_notes:
+            coverage_note += f" {zone_notes[zone]}"
         rows.append({
             "zone": zone,
             "vehicle_emission_load_raw_g_per_day": raw_load,
