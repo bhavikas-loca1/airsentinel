@@ -1,7 +1,13 @@
 vehicle_category,fuel_type,pollutant,emission_factor_g_per_km,bs_norm,source_citation
-two_wheeler,petrol,NOx,0.06,BS6,"[DEMO DATA — see build_demo_data.py for full citations] Official BS6 NOx limit, petrol two-wheeler: 60 mg/km."
-two_wheeler,petrol,PM,0.0045,BS6,[DEMO DATA — see build_demo_data.py for full citations] Official BS6 PM limit (shared across BS6 categories): 4.5 mg/km.
-car,petrol,NOx,0.06,BS6,"[DEMO DATA — see build_demo_data.py for full citations] Official BS6 NOx limit, petrol passenger car: 60 mg/km."
-car,petrol,PM,0.0045,BS6,[DEMO DATA — see build_demo_data.py for full citations] Official BS6 PM limit: 4.5 mg/km.
-car,diesel,NOx,0.08,BS6,"[DEMO DATA — see build_demo_data.py for full citations] Official BS6 NOx limit, diesel passenger car: 80 mg/km."
-car,diesel,PM,0.0045,BS6,[DEMO DATA — see build_demo_data.py for full citations] Official BS6 PM limit: 4.5 mg/km.
+two_wheeler,petrol,NOx,0.06,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 NOx limit, petrol two-wheeler: 60 mg/km (India, mandated since 1 Apr 2020)."
+two_wheeler,petrol,PM,0.0045,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 PM limit (shared across BS6 categories): 4.5 mg/km."
+two_wheeler,electric,NOx,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."
+two_wheeler,electric,PM,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."
+car,petrol,NOx,0.06,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 NOx limit, petrol passenger car: 60 mg/km."
+car,petrol,PM,0.0045,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 PM limit: 4.5 mg/km."
+car,diesel,NOx,0.08,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 NOx limit, diesel passenger car: 80 mg/km."
+car,diesel,PM,0.0045,BS6,"[REAL, cited — see build_reference_data.py] Official BS6 PM limit: 4.5 mg/km."
+car,electric,NOx,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."
+car,electric,PM,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."
+e_rickshaw,electric,NOx,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."
+e_rickshaw,electric,PM,0.0,N/A — physical fact,"[REAL, cited — see build_reference_data.py] Battery electric drivetrain has no tailpipe exhaust: 0 g/km by definition."

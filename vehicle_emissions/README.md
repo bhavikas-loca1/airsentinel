@@ -11,34 +11,45 @@ vehicle count (by type & fuel, per RTO)
   = Vehicle Emission Load Index per zone
 ```
 
-## Demo data (for tonight's demo — read this first)
+## Real VAHAN data (current — this is what the pipeline runs on now)
 
-`python -m vehicle_emissions.build_demo_data` generates a **real-world-informed, not
-random** dataset so the pipeline runs end-to-end tonight, ahead of the real VAHAN/ARAI
-sourcing below. Every number is either a **real cited figure** or an **explicitly labeled
-assumption** — see `src/vehicle_emissions/build_demo_data.py`'s docstring for every citation:
+`data/raw/vahan_rto_fuel_2026.csv` and `data/raw/vahan_rto_category_2026.csv` are **real**
+exports pulled directly from vahan.parivahan.gov.in's Tabular Summary (State = Delhi(16),
+accessed 2026-07-21) — RTO × fuel-type and RTO × vehicle-class registration counts for all
+10 RTOs this module maps to a zone. `src/vehicle_emissions/real_registrations.py` combines
+the two into a per-(zone, vehicle_category, fuel_type) estimate — see its docstring for the
+exact method (VAHAN doesn't expose the joint breakdown directly, so the two marginals are
+combined via a documented, disclosed independence assumption, restricted to the fuel types
+this module has a real cited emission factor for: petrol, diesel, electric).
 
-- Real: Delhi's actual two-wheeler (10,370,047) and car (3,311,579) registration totals,
-  and official BS6 regulatory NOx/PM emission limits (India's mandated standard since
-  1 Apr 2020: petrol 60 mg/km NOx, diesel 80 mg/km NOx, 4.5 mg/km PM — all categories), and
-  a published Indian-cities urban-mobility distance figure (27-33 km/day for two-wheelers).
-- Labeled assumption, not cited: the Delhi-wide totals are split **evenly** across the 13
-  zones (we don't have real per-zone counts yet), and cars are assumed 70%/30% petrol/diesel
-  (a rough commonly-cited order, not a verified Delhi figure).
-
-The dashboard and every output CSV carry this forward visibly — a `data_provenance` column,
-an amber "DEMO DATA" chip (not green "live"), and a banner explaining exactly what's real vs.
-assumed. This is deliberate: **the demo should never look more precise than it is.**
+`src/vehicle_emissions/build_reference_data.py` writes the matching real (non-demo) emission
+factors — official BS6 regulatory NOx/PM limits, plus 0 g/km for electric (a physical fact,
+not an estimate) — and the same cited urban-mobility distance figure as before.
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\.venv\Scripts\python.exe -m vehicle_emissions.build_demo_data
-.\.venv\Scripts\python.exe -m vehicle_emissions.pipeline
+.\.venv\Scripts\python.exe -m vehicle_emissions.build_reference_data   # emission factors + distance
+.\.venv\Scripts\python.exe -m vehicle_emissions.pipeline               # picks up the real VAHAN files automatically
 ```
 
-Replace with real per-RTO VAHAN data (below) before using this for anything beyond a demo —
-the even-zone-split means every zone currently shows the identical index (1.00), which
-honestly reflects that we don't have real zone-to-zone variation yet, not a bug.
+Result: real, differentiated per-zone variation (no longer a flat placeholder) — e.g. this
+run: RK Puram 1.00 (highest), Anand Vihar / Vivek Vihar 0.19 (lowest). `data_provenance` in
+the output now reads `"real, cited"`, and the dashboard shows the green "live" badge, not
+amber "DEMO DATA".
+
+**Known limitation, disclosed not hidden:** the independence assumption means the estimated
+(category, fuel) split can misallocate at the margins — e.g. a small "two-wheeler/diesel"
+share gets estimated even though diesel two-wheelers are practically nonexistent in reality.
+Since no cited two-wheeler-diesel emission factor exists, that slice is excluded from the
+index automatically (visible in `coverage_note`), not silently kept.
+
+### Earlier fallback: demo data (superseded, kept for reference)
+
+Before the real VAHAN exports above were available, `build_demo_data.py` generated a
+real-world-informed-but-explicitly-labeled placeholder (real Delhi-wide totals split evenly
+across zones, since no real per-zone data existed yet). It's kept as a fallback pattern for
+extending this to a future city before real per-RTO data is sourced there — see its
+docstring. `pipeline.py` now prefers the real VAHAN files automatically whenever both exist.
 
 ## Why this module needs real data files, not defaults
 
@@ -74,29 +85,27 @@ directly, it's the single place this assumption lives.
 **Until you supply real data, running the pipeline fails loudly with instructions — it never
 produces a fabricated chart or number.** This is intentional.
 
-## Getting real data
+## What's still open
 
-1. **Vehicle registrations** (recommended: RTO-level) —
-   [vahan.parivahan.gov.in/vahan4dashboard](https://vahan.parivahan.gov.in/vahan4dashboard/)
-   → *Tabular Summary* or *Comparison View* → filter State = `Delhi(16)` → export vehicle
-   counts by category & fuel type **per RTO** (DL1–DL13; ignore the DL5x/DL20x
-   fitness-centre and specialised-unit codes, they don't register vehicles) — this matches
-   VAHAN's actual export granularity, so no manual zone-mapping is needed on your end; the
-   pipeline aggregates it via `rto_mapping.py` automatically. (If you'd rather do the zone
-   aggregation yourself, `vehicle_registrations.csv`/`registrations.load()` still works as a
-   fallback.)
-2. **Emission factors** — pull g/km figures from:
+1. ~~Vehicle registrations per RTO~~ — **done**, see "Real VAHAN data" above.
+2. **Full ARAI/CPCB emission-factor table** — tonight's real factors are the official BS6
+   regulatory *limits* (petrol/diesel car & two-wheeler, plus electric = 0), which is a
+   real, defensible, cited number — but it's the regulatory cap, not a full real-world
+   ARAI/CPCB measured-emissions table broken out by every category (buses, trucks,
+   three-wheelers, older BS-IV+ vehicles still on the road). Pull the fuller table from:
    - [CPCB emission-factor PDF](https://cpcb.nic.in/displaypdf.php?id=RW1pc3Npb25fRmFjdG9yc19WZWhpY2xlcy5wZGY=)
    - [CPCB vehicular exhaust page](https://cpcb.nic.in/vehicular-exhaust/)
    - ARAI "Emission Factors for Indian In-Use Vehicles" report
    - Lok Sabha reply, 9 Aug 2021, "Vehicle-wise Emission Factors..." (data.gov.in)
-3. **Average distances** — pull from a published transport survey, e.g. Delhi's
+3. **Category-specific average distances** — tonight's figure (30 km/day) is a real cited
+   two-wheeler study reused for cars/e-rickshaws too. Pull car-specific figures from Delhi's
    Comprehensive Mobility Plan or the Economic Survey of Delhi's transport chapter.
+4. **Buses, trucks, three-wheelers, older BS-norm vehicles** — not in the current category
+   set (`two_wheeler`, `car`, `e_rickshaw`); add real emission factors + distances for them
+   in `emission_factors.csv`/`distance_estimates.csv` to widen coverage.
 
-Then fill in the templates in `data/templates/` (regenerate them any time with
-`python -m vehicle_emissions.pipeline --write-templates`) and save the filled versions to
-`data/raw/vehicle_registrations_by_rto.csv` (recommended) or `vehicle_registrations.csv`,
-plus `data/raw/emission_factors.csv` and `data/raw/distance_estimates.csv`.
+Regenerate the input templates any time with `python -m vehicle_emissions.pipeline
+--write-templates`.
 
 ## Setup
 
@@ -112,16 +121,19 @@ python -m venv .venv
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\.venv\Scripts\python.exe -m vehicle_emissions.pipeline --write-templates   # first time
-# ... fill in the three CSVs in data/raw/ with real, sourced data ...
-.\.venv\Scripts\python.exe -m vehicle_emissions.pipeline
+.\.venv\Scripts\python.exe -m vehicle_emissions.build_reference_data   # emission factors + distance (real, cited)
+.\.venv\Scripts\python.exe -m vehicle_emissions.pipeline               # uses the real VAHAN files already in data/raw/
 ```
+
+The real VAHAN exports (`vahan_rto_fuel_2026.csv`, `vahan_rto_category_2026.csv`) are
+already committed in `data/raw/` — if you're re-sourcing them yourself later, the same
+Tabular Summary export steps are in "Real VAHAN data" above.
 
 Output: `outputs/vehicle_emission_index.csv` —
 `zone, vehicle_emission_load_raw_g_per_day, vehicle_emission_load_index, n_vehicle_categories_included, data_asof, coverage_note, data_provenance`.
-`data_provenance` says `"demo — real-world-informed, not verified precision"` or `"real, cited"`
-depending on whether any input row came from `build_demo_data.py` — computed automatically,
-not something you have to remember to set.
+`data_provenance` reads `"real, cited"` when the run used the real VAHAN files, or
+`"demo — real-world-informed, not verified precision"` if it fell back to `build_demo_data.py`
+— computed automatically from the input `source_citation` values, not something you set by hand.
 `vehicle_emission_load_index` is relative (0–1, current zone's load ÷ the highest zone's
 load), matching the design plan's dashboard mockup (slide 7: "Vehicle Emission Load Index:
 0.81").

@@ -30,7 +30,7 @@ import argparse
 
 import pandas as pd
 
-from . import config, distance_estimates, emission_factors, index, registrations
+from . import config, distance_estimates, emission_factors, index, real_registrations, registrations
 
 
 def _known_zones() -> set[str]:
@@ -52,10 +52,12 @@ def write_templates() -> None:
     distance_estimates.write_template()
 
 
-def _load_registrations() -> pd.DataFrame:
-    """Prefer RTO-level real data (VAHAN's actual export granularity, auto-aggregated to
-    zones via rto_mapping.py) over hand-aggregated zone-level data, if both are absent falls
-    through to load()'s error message."""
+def _load_registrations(known_zones: set[str]) -> pd.DataFrame:
+    """Priority order: real VAHAN RTO x Fuel / RTO x Vehicle Class exports (highest —
+    real_registrations.py's documented estimation) > RTO-level manual CSV > hand-aggregated
+    zone-level CSV > load()'s loud error if none exist."""
+    if config.REAL_RTO_FUEL_CSV.exists() and config.REAL_RTO_CATEGORY_CSV.exists():
+        return real_registrations.load_by_rto_real(known_zones=known_zones)
     if config.REGISTRATIONS_BY_RTO_CSV.exists():
         return registrations.load_by_rto()
     return registrations.load()
@@ -63,7 +65,7 @@ def _load_registrations() -> pd.DataFrame:
 
 def run() -> pd.DataFrame:
     known_zones = _known_zones()
-    regs = _load_registrations()
+    regs = _load_registrations(known_zones)
     efs = emission_factors.load()
     dists = distance_estimates.load()
     result = index.compute(regs, efs, dists, known_zones=known_zones)

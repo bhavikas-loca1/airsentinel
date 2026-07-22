@@ -69,6 +69,15 @@ REGISTRATIONS_CSV = Path(os.environ.get(
 REGISTRATIONS_BY_RTO_CSV = Path(os.environ.get(
     "VEHICLE_REGISTRATIONS_BY_RTO_CSV", RAW_DIR / "vehicle_registrations_by_rto.csv"
 ))
+# Real VAHAN Tabular Summary exports (2026-07-21): RTO x Fuel and RTO x Vehicle Class
+# marginals. Highest-priority registration source — see real_registrations.py for how the
+# two are combined into a per-(zone, category, fuel) estimate.
+REAL_RTO_FUEL_CSV = Path(os.environ.get(
+    "VEHICLE_REAL_RTO_FUEL_CSV", RAW_DIR / "vahan_rto_fuel_2026.csv"
+))
+REAL_RTO_CATEGORY_CSV = Path(os.environ.get(
+    "VEHICLE_REAL_RTO_CATEGORY_CSV", RAW_DIR / "vahan_rto_category_2026.csv"
+))
 EMISSION_FACTORS_CSV = Path(os.environ.get(
     "VEHICLE_EMISSION_FACTORS_CSV", RAW_DIR / "emission_factors.csv"
 ))
